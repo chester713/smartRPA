@@ -62,24 +62,45 @@ def handle_log(status_queue: Queue,
             # remove rows that don't have timestamp
             # replace null values with empty string
             # sort by timestamp
+            # try:
+            #     df = pandas \
+            #         .read_csv(csv_path, encoding='utf-8-sig') \
+            #         .rename(columns={'event_type': 'concept:name',
+            #                          'timestamp': 'time:timestamp',
+            #                          'user': 'org:resource'}) \
+            #         .dropna(subset=["time:timestamp"]) \
+            #         .fillna('') \
+            #         .sort_values(by='time:timestamp')
+            # except pandas.errors.ParserError:
+            #     df = pandas \
+            #         .read_csv(csv_path, encoding='utf-8-sig', sep=';') \
+            #         .rename(columns={'event_type': 'concept:name',
+            #                          'timestamp': 'time:timestamp',
+            #                          'user': 'org:resource'}) \
+            #         .dropna(subset=["time:timestamp"]) \
+            #         .fillna('') \
+            #         .sort_values(by='time:timestamp')
+
+
             try:
-                df = pandas \
-                    .read_csv(csv_path, encoding='utf-8-sig') \
+                df = pandas.read_csv(
+                    csv_path,
+                    encoding="utf-8-sig",
+                    engine="python",
+                    sep=None,
+                    quotechar='"',
+                    escapechar="\\",
+                    on_bad_lines="skip"
+                ) \
                     .rename(columns={'event_type': 'concept:name',
                                      'timestamp': 'time:timestamp',
                                      'user': 'org:resource'}) \
                     .dropna(subset=["time:timestamp"]) \
                     .fillna('') \
                     .sort_values(by='time:timestamp')
-            except pandas.errors.ParserError:
-                df = pandas \
-                    .read_csv(csv_path, encoding='utf-8-sig', sep=';') \
-                    .rename(columns={'event_type': 'concept:name',
-                                     'timestamp': 'time:timestamp',
-                                     'user': 'org:resource'}) \
-                    .dropna(subset=["time:timestamp"]) \
-                    .fillna('') \
-                    .sort_values(by='time:timestamp')
+            except Exception as e:
+                status_queue.put(f"[PROCESS MINING] Failed parsing {csv_path}: {e}")
+                continue
 
             # Each csv should have a separate case ID, so I insert a column to the left of each csv and assign
             # number i. When I convert the combined csv to xes, all the rows with the same number will belong to a
@@ -110,12 +131,25 @@ def handle_log(status_queue: Queue,
 
             csv_to_combine.append(df)
 
-        # dataframe of combined csv, sorted by timestamp
+        # # dataframe of combined csv, sorted by timestamp
+        # combined_csv = pandas.concat(csv_to_combine)
+
+        # # remove rows containing path of temporary files
+        # combined_csv = combined_csv[~combined_csv['event_src_path'].str.contains(
+        #     '~.*\.tmp|\.tmp.*~')]
+
+        # dataframe of combined csv
         combined_csv = pandas.concat(csv_to_combine)
 
-        # remove rows containing path of temporary files
-        combined_csv = combined_csv[~combined_csv['event_src_path'].str.contains(
-            '~.*\.tmp|\.tmp.*~')]
+        # remove rows containing path of temporary files (if column exists)
+        if 'event_src_path' in combined_csv.columns:
+            combined_csv = combined_csv[
+                ~combined_csv['event_src_path'].str.contains(
+                    r'~.*\.tmp|\.tmp.*~',
+                    regex=True,
+                    na=False
+                )
+        ]
 
         # convert case id to string
         # combined_csv['case:concept:name'] = combined_csv['case:concept:name'].astype(str)

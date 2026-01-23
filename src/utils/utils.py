@@ -452,11 +452,29 @@ def open_file(path):
         print(f"[UTILS] Could not open file {path}: {e}")
 
 
+# def fixTimestampFieldXES(xes_filepath):
+#     import fileinput
+#     with fileinput.FileInput(xes_filepath, inplace=True) as file:
+#         for line in file:
+#             print(line.replace('<string key="time:timestamp"', '<date key="time:timestamp"'), end='')
+
 def fixTimestampFieldXES(xes_filepath):
     import fileinput
-    with fileinput.FileInput(xes_filepath, inplace=True) as file:
+    with fileinput.FileInput(
+        xes_filepath,
+        inplace=True,
+        encoding="utf-8",
+        errors="replace"
+    ) as file:
         for line in file:
-            print(line.replace('<string key="time:timestamp"', '<date key="time:timestamp"'), end='')
+            print(
+                line.replace(
+                    '<string key="time:timestamp"',
+                    '<date key="time:timestamp"'
+                ),
+                end=''
+            )
+
 
 
 # loop accessing the previous, current, and next items https://stackoverflow.com/a/1012089/1440037

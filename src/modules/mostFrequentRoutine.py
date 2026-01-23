@@ -4,6 +4,7 @@ from datetime import datetime
 from fuzzywuzzy import fuzz
 from multiprocessing.queues import Queue
 from deprecated.sphinx import deprecated
+from urllib.parse import unquote
 
 
 @deprecated(version='1.2.0', reason="Replaced by decision points")
@@ -35,24 +36,62 @@ def selectMostFrequentCase(dataframe: pandas.DataFrame, status_queue: Queue, fla
     # 1                     Insert Fine Notification, Add penalty   2020-03-20 17:10:28:348, 2020-03-20 17:10:28:2
     df1 = df.groupby(['case:concept:name'])[[groupby_column, 'time:timestamp']].agg(', '.join).reset_index()
 
+    # def getDuration(time):
+    #     """
+    #     Get duration of a trace, taking the first and last timestam in the trace and calculating the difference
+
+    #     :param time: timestamp column
+    #     :return: time duration in seconds
+    #     """
+    #     timestamps = time.split(',')
+    #     try:
+    #         start = datetime.fromisoformat(timestamps[0].strip())
+    #         finish = datetime.fromisoformat(timestamps[-1].strip())
+    #         # start = datetime.strptime(timestamps[0].strip(), "%Y-%m-%dT%H:%M:%S.%f")
+    #         # finish = datetime.strptime(timestamps[-1].strip(), "%Y-%m-%dT%H:%M:%S.%f")
+    #     except ValueError:
+    #         start = datetime.strptime(timestamps[0].strip(), "%Y-%m-%d %H:%M:%S:%f")
+    #         finish = datetime.strptime(timestamps[-1].strip(), "%Y-%m-%d %H:%M:%S:%f")
+    #     duration = finish - start
+    #     return duration.total_seconds()
+
     def getDuration(time):
         """
-        Get duration of a trace, taking the first and last timestam in the trace and calculating the difference
+        Get duration of a trace, taking the first and last timestamp in the trace
+        and calculating the difference.
 
         :param time: timestamp column
         :return: time duration in seconds
         """
-        timestamps = time.split(',')
         try:
-            start = datetime.fromisoformat(timestamps[0].strip())
-            finish = datetime.fromisoformat(timestamps[-1].strip())
-            # start = datetime.strptime(timestamps[0].strip(), "%Y-%m-%dT%H:%M:%S.%f")
-            # finish = datetime.strptime(timestamps[-1].strip(), "%Y-%m-%dT%H:%M:%S.%f")
-        except ValueError:
-            start = datetime.strptime(timestamps[0].strip(), "%Y-%m-%d %H:%M:%S:%f")
-            finish = datetime.strptime(timestamps[-1].strip(), "%Y-%m-%d %H:%M:%S:%f")
-        duration = finish - start
-        return duration.total_seconds()
+            # Ensure string and split timestamps
+            timestamps = str(time).split(',')
+
+            # URL-decode first (CRITICAL)
+            start_raw = unquote(timestamps[0].strip())
+            finish_raw = unquote(timestamps[-1].strip())
+
+            # Reject obviously invalid timestamps
+            if len(start_raw) < 10 or len(finish_raw) < 10:
+                return 0
+
+            try:
+                start = datetime.fromisoformat(start_raw)
+                finish = datetime.fromisoformat(finish_raw)
+            except ValueError:
+                start = datetime.strptime(start_raw, "%Y-%m-%d %H:%M:%S:%f")
+                finish = datetime.strptime(finish_raw, "%Y-%m-%d %H:%M:%S:%f")
+
+            duration = finish - start
+
+            # Guard against negative / corrupted durations
+            return max(duration.total_seconds(), 0)
+
+        except Exception:
+            # Any malformed trace → ignore safely
+            return 0
+
+
 
     df1['duration'] = df1['time:timestamp'].apply(lambda time: getDuration(time))
 

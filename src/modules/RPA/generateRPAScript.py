@@ -48,14 +48,30 @@ class RPAScript:
 
         self.csv_file_path = csv_file_path
         self.RPA_directory = utils.utils.getRPADirectory(self.csv_file_path)
-        try:
+        # try:
+        #     self._dataframe = pandas.read_csv(
+        #         csv_file_path, encoding='utf-8-sig')
+        # except pandas.errors.ParserError:
+        #     self._dataframe = pandas.read_csv(
+        #         csv_file_path, encoding='utf-8-sig', sep=';')
+        # except UnicodeDecodeError as e:
+        #     print(f"[RPA] Could not decode {csv_file_path}: {e}")
+
+
+        try: 
             self._dataframe = pandas.read_csv(
-                csv_file_path, encoding='utf-8-sig')
-        except pandas.errors.ParserError:
+                csv_file_path, 
+                encoding='utf-8-sig',
+                engine="python",
+                on_bad_lines="skip"
+            )
+        except UnicodeDecodeError:
             self._dataframe = pandas.read_csv(
-                csv_file_path, encoding='utf-8-sig', sep=';')
-        except UnicodeDecodeError as e:
-            print(f"[RPA] Could not decode {csv_file_path}: {e}")
+                csv_file_path,
+                encoding='latin1',
+                engine="python",
+                on_bad_lines="skip"
+            )
 
     def run(self):
         if not os.path.exists(self.csv_file_path):

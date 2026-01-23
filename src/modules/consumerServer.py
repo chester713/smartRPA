@@ -118,9 +118,20 @@ def writeLog():
 
         row.append(content.get(col))
 
-    with open(log_filepath, 'a', newline='', encoding='utf-8-sig') as out_file:
+    # with open(log_filepath, 'a', newline='', encoding='utf-8-sig') as out_file:
 
-        f = csv.writer(out_file)
+    #     f = csv.writer(out_file)
+    #     f.writerow(row)
+
+    with open(log_filepath, 'a', newline='', encoding='utf-8-sig') as out_file:
+        f = csv.writer(
+            out_file,
+            delimiter=",",             # default
+            quotechar='"',             # default
+            quoting=csv.QUOTE_MINIMAL, # or csv.QUOTE_ALL for maximum compatibility
+            doublequote=True,          # default: escape internal quotes as ""
+            lineterminator="\n"        # normalize line endings (helps some parsers)
+        )
         f.writerow(row)
 
     # empty the list for next use
