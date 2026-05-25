@@ -1019,8 +1019,8 @@ def excelEvents(status_queue, filepath=None):
             # create new empty workbook that contains worksheet
             e.Workbooks.Add()
 
-        runLoop(e)
         status_queue.put("[officeEvents] Excel logging started")
+        runLoop(e)
         if not CheckSeenEvents(e, ["OnNewWorkbook", "OnWindowActivate"]):
             sys.exit(1)
 
@@ -1058,7 +1058,7 @@ def excelEventsMacServer(status_queue, excelFilepath=None):
     import xlwings as xw
     macExcelAddinPath = os.path.join(utils.utils.MAIN_DIRECTORY, 'extensions', 'excelAddinMac')
     # os.system(f"cd {macExcelAddinPath} && npm run dev-server >/dev/null 2>&1") # hide output
-    if not utils.utils.utils.utils.isPortInUse(3000):
+    if not utils.utils.isPortInUse(3000):
         screenshot = takeScreenshot()
         json_string={
             "timestamp": utils.utils.timestamp(),
