@@ -10,7 +10,7 @@ function timestamp(){
 }
 
 function userAgent(string){
-    return window.navigator.userAgent.indexOf(string) > -1;
+    return navigator.userAgent.indexOf(string) > -1;
 }
 
 // detect which browser is running the extension
@@ -21,7 +21,7 @@ function getBrowser() {
         return "Edge";
     else if (userAgent("OPR") || userAgent("Opera"))
         return ("Opera");
-    else if (userAgent("Safari") && window.navigator.userAgent.indexOf('Chrome') === -1)
+    else if (userAgent("Safari") && navigator.userAgent.indexOf('Chrome') === -1)
         return "Safari";
     else if (userAgent("MSIE ") || !!navigator.userAgent.match(/Trident.*rv\:11\./))
         return "InternetExplorer";
@@ -145,19 +145,13 @@ function getElementByXPath(path) {
 
 // post request to server sending logging data
 function post(eventLog) {
-    $.ajax({
-        type: "POST",
-        url: "http://127.0.0.1:4444/",
-        crossDomain: true,
-        contentType: "application/json",
-        data: JSON.stringify(eventLog),
-        success: function(responseData, status, xhr) {
-            console.log("Log sent to server "); // + JSON.stringify(responseData));
-        },
-        error: function(request, status, error) {
-            console.log("Request Failed " + error);
-        }
-    });
+    fetch("http://127.0.0.1:4444/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(eventLog)
+    })
+    .then(() => console.log("Log sent to server"))
+    .catch(error => console.log("Request Failed " + error));
 }
 
 // log data only if server is running
@@ -185,13 +179,13 @@ function sendToBackgroundForPost(eventLog) {
 // check if server is online and update extension status
 // used by extension script.js when clicking the icon, background script on extension startup and on installed
 function checkServerStatus() {
-    $.ajax({
-        url: "http://127.0.0.1:4444/serverstatus",
-        type: "GET",
-        timeout: 500
-    })
-        .done(function(data, textStatus, jqXHR) {
-            console.log("Logging server running: " + jqXHR.status);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 500);
+    fetch("http://127.0.0.1:4444/serverstatus", { signal: controller.signal })
+        .then(response => response.json())
+        .then(data => {
+            clearTimeout(timeoutId);
+            console.log("Logging server running");
             if (
                 (getBrowser() === "Chrome" && data.log_chrome) ||
                 (getBrowser() === "Firefox" && data.log_firefox) ||
@@ -205,21 +199,19 @@ function checkServerStatus() {
                 loggingONOFF();
             }
         })
-        .fail(function(jqXHR, textStatus, errorThrown) {
+        .catch(error => {
             console.log("Logging server off");
             // server NOT running
             loggingOFF();
-        })
-        .always(function() {
-            /* ... */
         });
 }
 
 // server running and browser logging enabled by user
 function loggingON() {
-    // set extension page text and color
-    $("#server_status").text("Logging server running");
-    $("#server_status").css("color", "greenyellow");
+    if (typeof $ !== 'undefined') {
+        $("#server_status").text("Logging server running");
+        $("#server_status").css("color", "greenyellow");
+    }
     // setExtensionBadge("ON")
     chrome.storage.local.set({ log_browser: true });
     console.log("logging enabled");
@@ -227,10 +219,12 @@ function loggingON() {
 
 // server running but browser logging NOT enabled by user
 function loggingONOFF() {
-    $("#server_status").text(
-        `Logging server running but ${getBrowser()} logging disabled`
-    );
-    $("#server_status").css("color", "orange");
+    if (typeof $ !== 'undefined') {
+        $("#server_status").text(
+            `Logging server running but ${getBrowser()} logging disabled`
+        );
+        $("#server_status").css("color", "orange");
+    }
     // setExtensionBadge("ONOFF")
     chrome.storage.local.set({ log_browser: false });
     console.log("logging disabled");
@@ -239,26 +233,28 @@ function loggingONOFF() {
 // server NOT running
 function loggingOFF() {
     console.log("HTTP Request Failed, server offline");
-    $("#server_status").text("Logging server not running");
+    if (typeof $ !== 'undefined') {
+        $("#server_status").text("Logging server not running");
+    }
     // setExtensionBadge("OFF")
     chrome.storage.local.set({ log_browser: false });
     console.log("logging disabled");
 }
 
 function setExtensionBadge(status) {
-    chrome.browserAction.setBadgeText({ text: status });
+    chrome.action.setBadgeText({ text: status });
     if (status === "ON")
-        chrome.browserAction.setBadgeBackgroundColor({ color: "green" });
+        chrome.action.setBadgeBackgroundColor({ color: "green" });
     else if (status === "ONOFF")
-        chrome.browserAction.setBadgeBackgroundColor({ color: "orange" });
+        chrome.action.setBadgeBackgroundColor({ color: "orange" });
     else if (status === "OFF")
-        chrome.browserAction.setBadgeBackgroundColor({ color: "red" });
+        chrome.action.setBadgeBackgroundColor({ color: "red" });
 }
 
 // if user is using dark mode, change extension icon to white so it is visible in dark toolbar, used by background script
 function setupIconColor(){
-    if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-        chrome.browserAction.setIcon({
+    if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+        chrome.action.setIcon({
             path: {
                 "16": "icons/icon-16-dark.png",
                 "32": "icons/icon-32-dark.png",

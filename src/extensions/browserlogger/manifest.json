@@ -35,6 +35,9 @@
     "storage",
     "webNavigation"
   ],
+  "host_permissions": [
+    "http://127.0.0.1:4444/*"
+  ],
   "action": {
     "default_icon": {
       "16": "icons/icon-16.png",

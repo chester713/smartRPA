@@ -1,3 +1,5 @@
+importScripts('utility_script.js');
+
 // Chrome APIs
 // https://developer.chrome.com/extensions/api_index
 
