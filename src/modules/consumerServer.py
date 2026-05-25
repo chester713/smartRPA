@@ -50,6 +50,109 @@ def index():
     return "Server working, send post with json data."
 
 
+# @app.route('/', methods=['POST'])
+# def writeLog():
+#     """
+#     Route where json event is received and processed.
+
+#     JSON event includes metadata about the event, such as the timestamp, category, application, concept:name
+#     and other information depending on the event type.
+
+#     All this data is appended to the csv event log.
+#     """
+
+#     # All elements of content are key - value pairs with the values being of type "str"
+#     content = request.json
+
+#     # Anonymize password data in the UI Log
+#     tag_type = content.get("tag_type", "")
+#     tag_name = content.get("tag_name", "")
+#     # List of sensitive words to check for
+#     sensitive_words = ['password', 'passwort', 'pin', 'secret', 'key', 'token', 'credential']
+#     # Compile a regex pattern for case-insensitive matching
+#     pattern = re.compile('|'.join(sensitive_words), re.IGNORECASE)
+#     # If tag_type or tag_name contain sensitive words, redact tag_value
+#     if pattern.search(tag_type) or pattern.search(tag_name):
+#         content['tag_value'] = '[REDACTED]'
+#         content['tag_attributes'] = '[REDACTED]'
+#     else:
+#         # No sensitive words found; simply pass
+#         pass
+
+#     # check if user enabled browser logging
+#     application = content.get("application")
+#     if (application == "Chrome" and not log_chrome) or \
+#             (application == "Firefox" and not log_firefox) or \
+#             (application == "Edge" and not log_edge) or \
+#             (application == "Opera" and not log_opera):
+#         print(f"{application} logging disabled by user.")
+#         return content
+#     elif(content["category"] == "Browser" and not "screenshot" in content):
+#         # Take a screenshot for all incoming browser events
+#         screenshot = utils.utils.takeScreenshot()
+#         content["screenshot"] = screenshot
+#         # Double check the delay between the browser event logged and the screenshot taken here
+#         # Latest check TOHO: For multiple screens ~0.5 sec, for single screen ~0.25 sec
+    
+#     # > Add supervision feature and outsource to other function in GUI as it should be GUI Element
+#     # Could be removed if it was added to all: Currently missing browser logger, thus has to be in place
+#     if utils.config.read_config("supervisionFeature",bool) and not "event_relevance" in content:
+#         answer =  sp.getResponse(content)
+#         content["event_relevance"] = answer
+
+#     print(f"\nPOST recieved and processed: {content}\n")
+
+#     # create row to write on csv: take the value of each column in HEADER if it exists and append it to the list
+#     # row = list(map(lambda col: content.get(col), HEADER))
+#     row = list()
+
+#     for col in HEADER:
+#         # add current user to browser logs (because browser extension can't determine current user)
+#         if not content.get("user"):
+#             content["user"] = utils.utils.USER
+#         if content.get("cell_content"):
+#             content["cell_content"] = content["cell_content"].strip('"')
+
+#         # convert events to camelCase (already done by browser extension)
+#         # content["event_type"] = stringcase.camelcase(content["event_type"])
+
+#         row.append(content.get(col))
+
+#     # with open(log_filepath, 'a', newline='', encoding='utf-8-sig') as out_file:
+
+#     #     f = csv.writer(out_file)
+#     #     f.writerow(row)
+
+#     with open(log_filepath, 'a', newline='', encoding='utf-8-sig') as out_file:
+#         f = csv.writer(
+#             out_file,
+#             delimiter=",",             # default
+#             quotechar='"',             # default
+#             quoting=csv.QUOTE_MINIMAL, # or csv.QUOTE_ALL for maximum compatibility
+#             doublequote=True,          # default: escape internal quotes as ""
+#             lineterminator="\n"        # normalize line endings (helps some parsers)
+#         )
+#         f.writerow(row)
+
+#     # empty the list for next use
+#     row.clear()
+
+#     return content
+
+
+FORBIDDEN = {
+    "\r": "%0D",
+    "\n": "%0A",
+    "\u0085": "%C2%85",
+    "\u2028": "%E2%80%A8",
+    "\u2029": "%E2%80%A9",
+}
+
+def sanitize_url(value: str) -> str:
+    for bad, replacement in FORBIDDEN.items():
+        value = value.replace(bad, replacement)
+    return value
+
 @app.route('/', methods=['POST'])
 def writeLog():
     """
@@ -106,6 +209,10 @@ def writeLog():
     # row = list(map(lambda col: content.get(col), HEADER))
     row = list()
 
+    # Sanitize URL content once before the loop; non-browser events may omit this field
+    if "browser_url" in content:
+        content["browser_url"] = sanitize_url(content["browser_url"])
+
     for col in HEADER:
         # add current user to browser logs (because browser extension can't determine current user)
         if not content.get("user"):
@@ -113,19 +220,11 @@ def writeLog():
         if content.get("cell_content"):
             content["cell_content"] = content["cell_content"].strip('"')
 
-        # convert events to camelCase (already done by browser extension)
-        # content["event_type"] = stringcase.camelcase(content["event_type"])
-
         row.append(content.get(col))
-
-    # with open(log_filepath, 'a', newline='', encoding='utf-8-sig') as out_file:
-
-    #     f = csv.writer(out_file)
-    #     f.writerow(row)
 
     with open(log_filepath, 'a', newline='', encoding='utf-8-sig') as out_file:
         f = csv.writer(
-            out_file,
+            out_file,           
             delimiter=",",             # default
             quotechar='"',             # default
             quoting=csv.QUOTE_MINIMAL, # or csv.QUOTE_ALL for maximum compatibility
@@ -138,7 +237,6 @@ def writeLog():
     row.clear()
 
     return content
-
 
 @app.route('/serverstatus', methods=['GET'])
 def getServerStatus():

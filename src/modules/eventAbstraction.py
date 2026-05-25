@@ -34,8 +34,7 @@ def _getHighLevelEvent(row):
     # browser
     elif e in ["clickRadioButton"]:
         return f"[{app}] Click {row['tag_type']} '{row['tag_name']}' with value '{row['tag_value']}' on {url}"
-    elif e in ["clickButton", "clickTextField", "doubleClick", "clickTextField", "mouseClick",
-               "clickCheckboxButton", "clickRadioButton"]:
+    elif e in ["clickButton", "clickTextField", "doubleClick", "mouseClick", "clickCheckboxButton"]:
         if row['tag_type'] == 'submit':
             return f"[{app}] Submit {row['tag_category'].lower()} on {url}"
         else:

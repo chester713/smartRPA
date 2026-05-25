@@ -40,7 +40,7 @@ def set_config_default():
     config = configparser.ConfigParser()
     config.read_string(default_config)
     if not os.path.exists("src/utils/config.ini"):
-        with open('config.ini', 'w') as configfile:
+        with open('src/utils/config.ini', 'w') as configfile:
             config.write(configfile)
         
 def read_config(config_var_key, type: type, config_area="SmartRPA"):

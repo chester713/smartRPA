@@ -115,7 +115,7 @@ def handle_log(status_queue: Queue,
 
             try:  # insert this column to create a unique trace for each csv
                 df.insert(0, 'case:concept:name',
-                          createCaseID(df['time:timestamp'][0]))
+                          createCaseID(df['time:timestamp'].iloc[0]))
             except ValueError:  # column already present, replace case id values so they are sequential
                 pass
 
@@ -191,4 +191,4 @@ def handle_log(status_queue: Queue,
     else:
         status_queue.put(
             "[PROCESS_MINING] Input file must be either .csv or .xes")
-        return False
+        return None, None

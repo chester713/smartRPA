@@ -157,7 +157,7 @@ class DecisionPoints:
         #    if no: There is no variation point in this variant identified (still may be another process)
         for _, group in self.df1.groupby([s, 'category']):
         # for _, group in self.df1.groupby('case:concept:name'): 
-            if len(group.groupby('case:concept:name')) >= 2 and not group['duplicated'].unique():
+            if len(group.groupby('case:concept:name')) >= 2 and not group['duplicated'].any():
                 count += 1
         return count
 

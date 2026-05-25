@@ -488,17 +488,6 @@ def previous_and_next(some_iterable):
 def get_last_directory_name(path):
     """
     Returns the name of the last directory within a given directory path.
-    """
-    directories = [d for d in os.listdir(path) if os.path.isdir(os.path.join(path, d))]
-    if directories:
-        last_directory = max(directories, key=lambda d: os.path.getmtime(os.path.join(path, d)))
-        return os.path.basename(last_directory)
-    else:
-        return None
-
-def get_last_directory_name(path):
-    """
-    Returns the name of the last directory within a given directory path.
 
     :param path: Path to the parent folder
     :return: "Newest" directory file name
@@ -533,25 +522,21 @@ def takeScreenshot(save_image: bool = utils.config.read_config("capture_screensh
         if not os.path.exists(directory):
             os.makedirs(directory)
 
-        # Capturing screenshot using pyautogui
-        img = pyautogui.screenshot()
-
-        # Shorten the hash for the name
-        short_hash = calculateImageHash(img.tobytes())
-
-        # We first use the timestamp in the name for the order of the screenshots.
         stamp = time.strftime("%Y-%m-%d_%H-%M-%S")
-        filename = os.path.join(directory, f"{stamp}_{short_hash}." + scrshtFormat)
-        img.save(filename, format=scrshtFormat)
 
-    else:
-        # If there are more than two screens attached, use the pillow image capture
-        screenshot = ImageGrab.grab(all_screens=True)
-        # Have to use tobytes as the PIL image cannot be hashed using sha256_hash method
-        short_hash = calculateImageHash(screenshot.tobytes())
-        stamp = time.strftime("%Y-%m-%d_%H-%M-%S")
-        filename = os.path.join(directory, f"{stamp}_{short_hash}." + scrshtFormat)
-        screenshot.save(filename, format=scrshtFormat)
+        monitors = get_monitors()
+        if len(monitors) > 1:
+            # Multiple screens: PIL ImageGrab captures all at once
+            screenshot = ImageGrab.grab(all_screens=True)
+            short_hash = calculateImageHash(screenshot.tobytes())
+            filename = os.path.join(directory, f"{stamp}_{short_hash}.{scrshtFormat}")
+            screenshot.save(filename, format=scrshtFormat)
+        else:
+            # Single screen: pyautogui is faster
+            img = pyautogui.screenshot()
+            short_hash = calculateImageHash(img.tobytes())
+            filename = os.path.join(directory, f"{stamp}_{short_hash}.{scrshtFormat}")
+            img.save(filename, format=scrshtFormat)
 
     return filename
 
@@ -596,7 +581,7 @@ def staticNoiseIdentification(uilog: pd.DataFrame) -> pd.DataFrame:
     # RegEx for Data validation
     excel_cell = r'^[a-zA-Z]+\d+$'  # Any combination of text + number without special characters
     slides_regex = r'^[0-9,\s]+$' # Any sequence of numbers seperated with ",", may contain spaces
-    mouseCoord_regex = r'/[\-?\[0-9]+,\s?\-?[0-9]+]' # Any positiv/negative combo of [x,y] coords
+    mouseCoord_regex = r'^\[-?\d+,\s?-?\d+\]$' # Any positiv/negative combo of [x,y] coords
     
     # Check if each timestamp and ID (unnamed: 0) can be converted to a Python Primitive Data
     for i, row in uilog.iterrows():
@@ -613,7 +598,7 @@ def staticNoiseIdentification(uilog: pd.DataFrame) -> pd.DataFrame:
             noiseDf = concatIntoNoiseDf(noiseDf,row['cell_range'],'cell_range',i)
         if not pd.isnull(row["slides"]) and not re.match(slides_regex, str(row["slides"])):
             noiseDf = concatIntoNoiseDf(noiseDf,row['slides'],'slides',i)
-        if not pd.isnull(row["mouse_coord"]) and not re.match(mouseCoord_regex, str(row["slides"])):
+        if not pd.isnull(row["mouse_coord"]) and not re.match(mouseCoord_regex, str(row["mouse_coord"])):
             noiseDf = concatIntoNoiseDf(noiseDf,row['mouse_coord'],'mouse_coord',i)
         
         # Length Tests
@@ -711,7 +696,7 @@ def isInstalledMac(programName):
 
 # needs testing
 def isInstalledLinux(programName):
-    return os.subprocess.call(f"dpkg -s {programName} > /dev/null 2>&1", shell=True) == 0
+    return subprocess.call(f"dpkg -s {programName} > /dev/null 2>&1", shell=True) == 0
 
 
 # set boolean variables for available programs, used by GUI to enable/disable checkboxes
